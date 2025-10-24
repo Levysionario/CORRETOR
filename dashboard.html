@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - MelhorENEM+</title>
+    
+<link rel="stylesheet" href="style.css"> 
+    
+<link rel="stylesheet" href="dashboard.css"> 
+</head>
+<body>
+    <div class="container">
+        <div class="header-dashboard">
+            <h1>Dashboard do Aluno</h1>
+            <p>Acompanhe seu progresso nas 5 competências do ENEM.</p>
+        </div>
+
+        <a href="redacao.html" class="btn-cta-small">
+            <i class="fas fa-edit"></i> Nova Redação
+        </a>
+        <a href="index.html" class="btn-cta-small">
+            <i class="fas fa-edit"></i> Voltar
+        </a>
+        <div id="sumario-container" class="sumario-geral">
+            <div class="card card-principal">
+                <span class="label">Total de Redações Corrigidas</span>
+                <span id="redacoes-corrigidas" class="valor-principal">0</span>
+            </div>
+            <div class="card card-principal">
+                <span class="label">Nota Média Geral</span>
+                <span id="nota-media" class="valor-principal nota-destaque">000</span>
+            </div>
+        </div>
+
+        <div class="competencias-media">
+            <h2>Média por Competência</h2>
+            <div class="card-competencias">
+                <div class="card-comp">C1 (Norma): <span id="media-c1" class="score-small">000</span></div>
+                <div class="card-comp">C2 (Tema): <span id="media-c2" class="score-small">000</span></div>
+                <div class="card-comp">C3 (Argumentos): <span id="media-c3" class="score-small">000</span></div>
+                <div class="card-comp">C4 (Coesão): <span id="media-c4" class="score-small">000</span></div>
+                <div class="card-comp">C5 (Intervenção): <span id="media-c5" class="score-small">000</span></div>
+            </div>
+        </div>
+
+        <div class="historico-rascunhos">
+            <div class="historico-box">
+                <h2>Histórico de Correções (Clique para ver detalhes)</h2>
+                <ul id="historico-list">
+                    <li class="item-placeholder">Carregando histórico...</li>
+                </ul>
+            </div>
+
+            <div class="rascunhos-box">
+                <h2>Meus Rascunhos</h2>
+                <ul id="rascunhos-list">
+                    <li class="item-placeholder">Carregando rascunhos...</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+    
+<script src="script.js"></script>
+<div id="modal-correcao" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-tema">Detalhes da Correção</h3>
+            <button class="close-btn" onclick="fecharModal()">×</button>
+        </div>
+        
+        <div class="modal-body">
+            
+            <div class="notas-container">
+                <p>Nota Final: <span id="modal-nota-final" class="score-large">000</span></p>
+                
+                <span class="score-item">C1 (Norma): <span id="modal-c1-score" class="score-small">000</span></span>
+                <span class="score-item">C2 (Tema): <span id="modal-c2-score" class="score-small">000</span></span>
+                <span class="score-item">C3 (Argumentos): <span id="modal-c3-score" class="score-small">000</span></span>
+                <span class="score-item">C4 (Coesão): <span id="modal-c4-score" class="score-small">000</span></span>
+                <span class="score-item">C5 (Intervenção): <span id="modal-c5-score" class="score-small">000</span></span>
+            </div>
+
+            <h4>Feedback Detalhado:</h4>
+            <p id="modal-feedback-detalhado">Carregando feedback...</p>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn-secundario" onclick="fecharModal()">Fechar</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,130 @@
+/* ARQUIVO: redacao.css */
+
+/* O elemento <main> é o container principal em redacao.html */
+main {
+    width: 90%;
+    max-width: 1000px;
+    padding: 30px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    color: var(--color-text-dark);
+    margin: 30px auto; 
+}
+
+/* Títulos */
+main h1 { /* Estilo do título MelhorENEM+ */
+    font-size: 3em;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 5px;
+    color: var(--color-primary-dark);
+    text-shadow: 2px 2px 0 var(--color-text-light);
+    text-align: center;
+}
+main h2 { /* Estilo do subtítulo "Escreva sua Redação..." */
+    font-size: 2rem;
+    color: var(--color-primary-dark);
+    font-weight: 700;
+    text-align: center;
+}
+
+/* Botões Secundários (Voltar e Salvar) - Topo */
+.top-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 20px;
+}
+.btn-secundario {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: background-color 0.3s;
+}
+#btnVoltarSalvar { 
+    background-color: var(--color-gray-btn); 
+    color: var(--color-text-light); 
+}
+#btnVoltarSalvar:hover { 
+    background-color: #5a6268; 
+}
+#btnVoltarDashboard { 
+    background-color: #007bff; 
+    color: var(--color-text-light); 
+}
+#btnVoltarDashboard:hover { 
+    background-color: #0056b3; 
+}
+
+/* Área de Texto */
+#redacao-input { 
+    width: 100%;
+    min-height: 400px;
+    padding: 20px;
+    border: 2px solid #ccc;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.3s;
+}
+#redacao-input:focus { 
+    border-color: var(--color-primary-dark); 
+    outline: none; 
+}
+
+/* Botão de Corrigir - CTA Grande */
+#btnCorrigir { 
+    display: block;
+    width: 100%;
+    background-color: var(--color-primary);
+    color: var(--color-text-light);
+    font-size: 1.5rem;
+    font-weight: 800;
+    padding: 15px 0;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    margin-top: 30px;
+    box-shadow: 0 5px 15px rgba(59, 0, 255, 0.4);
+    transition: background-color 0.3s, transform 0.2s;
+}
+#btnCorrigir:hover { 
+    background-color: #5d33ff; 
+    transform: translateY(-1px); 
+}
+
+/* Estilos para a Área de Resultados */
+#correcao-resultado { 
+    margin-top: 40px;
+    padding: 30px;
+    background-color: #e0f8ff; 
+    border-radius: 10px;
+    border-left: 5px solid var(--color-secondary); 
+    min-height: 100px;
+    text-align: left;
+}
+.notas-container { 
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 20px;
+    padding: 10px;
+    border-bottom: 1px dashed #ccc;
+    margin-bottom: 20px;
+}
+.notas-container span {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #ff007b; 
+} 
+#feedback-detalhado { 
+    white-space: pre-wrap; 
+    line-height: 1.5; 
+}
