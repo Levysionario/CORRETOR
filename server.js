@@ -1,12 +1,11 @@
-// ARQUIVO: backend/server.js (Substitua TODO o seu conteúdo por este)
-const express = require('express');
-const { GoogleGenAI } = require('@google/genai');
-const dotenv = require('dotenv');
-const cors = require('cors');
-const mysql = require('mysql2/promise');
+// ARQUIVO: server.js (Versão ESM para corrigir o problema do 'require is not defined')
+import express from 'express';
+import { GoogleGenAI } from '@google/genai';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import mysql from 'mysql2/promise';
 
 // 1. CARREGAR VARIÁVEL DE AMBIENTE (SUA CHAVE)
-// No Render, as variáveis são lidas automaticamente, mas mantemos para testes locais.
 dotenv.config({ path: './.env' }); 
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -35,6 +34,7 @@ async function connectToDatabase() {
     } catch (error) {
         console.error("ERRO CRÍTICO: Não foi possível conectar ao banco de dados.", error.message);
         console.error("Verifique se as 5 variáveis de ambiente no Render estão corretas.");
+        // O Render irá tentar reiniciar se process.exit(1) for chamado, mantemos para log.
         process.exit(1);
     }
 }
@@ -47,10 +47,7 @@ if (!GEMINI_API_KEY) {
 }
 
 const app = express();
-// === CORREÇÃO CRÍTICA AQUI ===
-// A porta é lida da variável de ambiente PORT (fornecida pelo Render)
 const port = process.env.PORT || 3000;
-// =============================
 
 app.use(cors()); 
 app.use(express.json()); 
@@ -60,6 +57,7 @@ const model = "gemini-2.5-flash";
 
 // --- 4. ENDPOINT PRINCIPAL: CORREÇÃO E SALVAMENTO NO BD
 app.post('/api/corrigir-redacao', async (req, res) => {
+    // ... (O restante do seu código POST /api/corrigir-redacao é o mesmo)
     const { redacao, tema } = req.body;
 
     if (!redacao || redacao.length < 50) {
@@ -143,6 +141,7 @@ app.post('/api/corrigir-redacao', async (req, res) => {
 
 // --- 5. ENDPOINT PARA SALVAR RASCUNHO
 app.post('/api/salvar-rascunho', async function(req, res) {
+    // ... (O restante do seu código é o mesmo)
     const { redacao } = req.body;
     const userId = TEST_USER_ID; 
 
@@ -174,6 +173,7 @@ app.post('/api/salvar-rascunho', async function(req, res) {
 
 // --- 6. ENDPOINT DE DADOS DO DASHBOARD 
 app.get('/api/dashboard-data/:usuario_id', async function(req, res) {
+    // ... (O restante do seu código é o mesmo)
     const userId = TEST_USER_ID; 
 
     try {
@@ -240,6 +240,7 @@ app.get('/api/dashboard-data/:usuario_id', async function(req, res) {
 
 // --- 7. ENDPOINT PARA BUSCAR REDAÇÃO/RASCUNHO POR ID (NOVO/CRUCIAL PARA O MODAL)
 app.get('/api/redacao/:id', async function(req, res) {
+    // ... (O restante do seu código é o mesmo)
     const redacaoId = req.params.id;
 
     try {
