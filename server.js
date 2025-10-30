@@ -1,4 +1,4 @@
-// ARQUIVO: server.js (Versão Final para Render PostgreSQL)
+// ARQUIVO: server.js (Versão Final e Corrigida para Render PostgreSQL)
 import express from 'express';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
@@ -6,7 +6,6 @@ import cors from 'cors';
 import { Pool } from 'pg'; // <--- Driver Oficial do PostgreSQL
 
 // --- Estrutura SQL Adaptada para PostgreSQL ---
-// PostgreSQL usa SERIAL para auto-incremento, TEXT para textos longos e ON CONFLICT para inserções condicionais.
 const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS USUARIOS (
     usuario_id SERIAL PRIMARY KEY,
@@ -52,16 +51,16 @@ const TEST_USER_ID = 1;
 
 async function connectToDatabase() {
     try {
-        // Render injeta a string de conexão completa (DATABASE_URL)
-        const DATABASE_URL = process.env.DATABASE_URL;
+        // CORREÇÃO CRÍTICA: Procura a variável mais confiável do Render e usa a DATABASE_URL como backup
+        const CONNECTION_STRING = process.env.RENDER_POSTGRESQL_CONNECTION_STRING || process.env.DATABASE_URL;
 
-        if (!DATABASE_URL) {
-            throw new Error("A variável de ambiente DATABASE_URL não está definida.");
+        if (!CONNECTION_STRING) {
+            throw new Error("Nenhuma URL de banco de dados encontrada. Verifique se a RENDER_POSTGRESQL_CONNECTION_STRING ou DATABASE_URL estão definidas no seu Web Service.");
         }
         
-        // Conecta usando a URL (e adiciona SSL, obrigatório no Render)
+        // Conecta usando a URL (e adiciona SSL, obrigatório no Render para conexões externas)
         pool = new Pool({ 
-             connectionString: DATABASE_URL,
+             connectionString: CONNECTION_STRING,
              ssl: { rejectUnauthorized: false } 
         }); 
         
@@ -79,7 +78,6 @@ async function connectToDatabase() {
         
     } catch (error) {
         console.error("ERRO CRÍTICO: Não foi possível conectar ao banco de dados.", error.message);
-        console.error("Verifique se o seu Web Service no Render está vinculado ao seu Render PostgreSQL Service.");
         process.exit(1); 
     }
 }
@@ -106,7 +104,7 @@ app.post('/api/corrigir-redacao', async function(req, res) {
     }
 
     try {
-        // 1. Cria o prompt
+        // 1. Cria o prompt (Omitido por ser muito longo, mas funcional)
         const prompt = `Você é um corretor de redações do ENEM. Avalie a redação a seguir em relação às 5 Competências do ENEM (C1 a C5), atribuindo notas de 0 a 200 para cada competência. O tema é: "${tema || 'Tema não especificado'}".
         A sua resposta deve ser EXCLUSIVAMENTE um objeto JSON.
         
@@ -161,7 +159,6 @@ app.post('/api/corrigir-redacao', async function(req, res) {
         const { nota_final, c1_score, c2_score, c3_score, c4_score, c5_score, feedback_detalhado } = correctionData;
 
         // 4. Salva a correção no banco de dados (CREATE)
-        // PostgreSQL usa $1, $2, etc., e RETURNING para obter o ID
         const result = await pool.query(
             `INSERT INTO REDACOES (usuario_id, tema, texto_original, nota_final, c1_score, c2_score, c3_score, c4_score, c5_score, feedback_detalhado)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING redacao_id`,
@@ -171,7 +168,7 @@ app.post('/api/corrigir-redacao', async function(req, res) {
         // 5. Retorna a correção
         res.json({
             success: true,
-            redacao_id: result.rows[0].redacao_id, // PG usa rows[0].id
+            redacao_id: result.rows[0].redacao_id, 
             ...correctionData
         });
 
@@ -213,7 +210,6 @@ app.post('/api/salvar-rascunho', async function(req, res) {
 app.get('/api/dashboard-data/:userId', async function(req, res) {
     try {
         // 1. Sumário (Total e Média)
-        // PostgreSQL usa a sintaxe ::integer para casting e COALESCE para tratar NULLs
         const sumarioResult = await pool.query(
             `SELECT 
                 COUNT(redacao_id) as total, 
