@@ -43,7 +43,8 @@
     </main>
 
     <script>
-        const BACKEND_URL = 'http://localhost:3000';
+        // CORREÇÃO AQUI: Altera 'localhost:3000' para a URL do Render
+        const BACKEND_URL = 'https://corretor-melhorenem.onrender.com';
         const redacaoInput = document.getElementById('redacao-input');
         const statusMessage = document.getElementById('status-message');
         const resultadoDiv = document.getElementById('correcao-resultado');
@@ -93,7 +94,7 @@
 
             } catch (error) {
                 console.error('Erro na correção:', error);
-                statusMessage.textContent = 'Erro: Não foi possível conectar ao servidor (porta 3000). Verifique se o Node.js está rodando.';
+                statusMessage.textContent = 'Erro: Não foi possível conectar ao servidor. Verifique a URL da API.';
             }
         }
 
