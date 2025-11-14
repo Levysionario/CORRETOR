@@ -4,12 +4,7 @@
 // 1. CONFIGURAÇÃO BASE
 // -----------------------------------------------------------
 const USER_ID = 1; 
-// === CORREÇÃO CRÍTICA AQUI ===
-// ⚠️ ATUALIZE ESTA URL: Substitua por sua URL REAL do Render!
-// Ex: https://meu-servico-node.onrender.com/api
-const API_BASE_URL = 'https://corretor-melhorenem.onrender.com/api'; 
-// =============================
-
+const API_BASE_URL = 'https://corretor-melhorenem.onrender.com/api'; // CORREÇÃO: URL DO RENDER
 
 // -----------------------------------------------------------
 // 2. FUNÇÃO PRINCIPAL: CARREGAR DADOS DO DASHBOARD
@@ -49,18 +44,19 @@ async function carregarDadosDashboard() {
 
 
 // -----------------------------------------------------------
-// 3. FUNÇÕES DE RENDERIZAÇÃO
+// 3. FUNÇÕES DE RENDERIZAÇÃO 
 // -----------------------------------------------------------
 
 function atualizarSumario(sumario) {
-    document.getElementById('redacoes-corrigidas').textContent = sumario.redacoesCorrigidas;
-    document.getElementById('nota-media').textContent = sumario.notaMedia;
+    // A API retorna 'total', 'nota_media', 'c1_media', etc.
+    document.getElementById('redacoes-corrigidas').textContent = sumario.total; 
+    document.getElementById('nota-media').textContent = sumario.nota_media; 
 
-    document.getElementById('media-c1').textContent = sumario.mediaC1;
-    document.getElementById('media-c2').textContent = sumario.mediaC2;
-    document.getElementById('media-c3').textContent = sumario.mediaC3;
-    document.getElementById('media-c4').textContent = sumario.mediaC4;
-    document.getElementById('media-c5').textContent = sumario.mediaC5;
+    document.getElementById('media-c1').textContent = sumario.c1_media;
+    document.getElementById('media-c2').textContent = sumario.c2_media;
+    document.getElementById('media-c3').textContent = sumario.c3_media;
+    document.getElementById('media-c4').textContent = sumario.c4_media;
+    document.getElementById('media-c5').textContent = sumario.c5_media;
 }
 
 function atualizarHistorico(historico) {
@@ -79,11 +75,10 @@ function atualizarHistorico(historico) {
                 <strong>${redacao.tema}</strong> 
                 <span class="data-historico">(${redacao.data})</span>
             </div>
-            <span class="nota-historico">${redacao.nota}</span>
+            <span class="nota-historico">${redacao.nota_final}</span>
         `;
-        // Chama a função para abrir o modal ao clicar
         li.addEventListener('click', () => {
-            abrirModalCorrecao(redacao.id); 
+            abrirModalCorrecao(redacao.redacao_id); 
         });
         listElement.appendChild(li);
     });
@@ -105,7 +100,7 @@ function atualizarRascunhos(rascunhos) {
                 <span class="rascunho-texto">${rascunho.texto}</span>
                 <span class="data-historico">(${rascunho.data})</span>
             </div>
-            <button onclick="carregarRascunhoNaPagina(${rascunho.id})" class="btn-abrir">Abrir</button>
+            <button onclick="carregarRascunhoNaPagina(${rascunho.redacao_id})" class="btn-abrir">Abrir</button>
         `;
         listElement.appendChild(li);
     });
@@ -197,7 +192,6 @@ async function preencherRedacaoPorId() {
 async function corrigirRedacao() {
     const redacaoInput = document.getElementById('redacao-input');
     const redacao = redacaoInput.value;
-    const loading = document.getElementById('loading');
     const resultadoDiv = document.getElementById('correcao-resultado');
 
     if (redacao.length < 50) {
@@ -205,7 +199,6 @@ async function corrigirRedacao() {
         return;
     }
 
-    loading.style.display = 'block';
     resultadoDiv.style.display = 'none';
 
     try {
@@ -235,8 +228,6 @@ async function corrigirRedacao() {
     } catch (error) {
         console.error("Erro na correção:", error);
         alert("Erro ao conectar ou processar a correção: " + error.message);
-    } finally {
-        loading.style.display = 'none';
     }
 }
 
