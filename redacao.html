@@ -43,93 +43,94 @@
     </main>
 
     <script>
-        // CORREÇÃO AQUI: Altera 'localhost:3000' para a URL do Render
-        const BACKEND_URL = 'https://corretor-melhorenem.onrender.com';
-        const redacaoInput = document.getElementById('redacao-input');
-        const statusMessage = document.getElementById('status-message');
-        const resultadoDiv = document.getElementById('correcao-resultado');
-        const temaPadrao = "Invisibilidade do trabalho de cuidado no Brasil."; 
+    // CORREÇÃO AQUI: Apenas uma declaração da variável BACKEND_URL, apontando para o Render
+    const BACKEND_URL = 'https://corretor-melhorenem.onrender.com'; 
+    const redacaoInput = document.getElementById('redacao-input');
+    const statusMessage = document.getElementById('status-message');
+    const resultadoDiv = document.getElementById('correcao-resultado');
+    const temaPadrao = "Invisibilidade do trabalho de cuidado no Brasil."; 
 
-        // Tenta carregar rascunho (Função desabilitada por enquanto)
-        const params = new URLSearchParams(window.location.search);
-        const rascunhoId = params.get('rascunho_id');
-        
-        
-        // --- FUNÇÃO DE CORREÇÃO ---
-        async function corrigirRedacao() {
-            const redacao = redacaoInput.value;
+    // Tenta carregar rascunho (Função desabilitada por enquanto)
+    const params = new URLSearchParams(window.location.search);
+    const rascunhoId = params.get('rascunho_id');
+    
+    
+    // --- FUNÇÃO DE CORREÇÃO ---
+    async function corrigirRedacao() {
+        const redacao = redacaoInput.value;
+        statusMessage.textContent = '';
+        resultadoDiv.style.display = 'none';
+
+        if (redacao.length < 50) {
+            statusMessage.textContent = 'A redação precisa ter no mínimo 50 caracteres para ser corrigida.';
+            return;
+        }
+
+        try {
+            statusMessage.textContent = 'Corrigindo redação... Aguarde.';
+            const response = await fetch(`${BACKEND_URL}/api/corrigir-redacao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ redacao: redacao, tema: temaPadrao })
+            });
+
             statusMessage.textContent = '';
-            resultadoDiv.style.display = 'none';
+            const data = await response.json();
 
-            if (redacao.length < 50) {
-                statusMessage.textContent = 'A redação precisa ter no mínimo 50 caracteres para ser corrigida.';
-                return;
+            if (response.ok) {
+                // Exibir a correção
+                document.getElementById('nota-final').textContent = data.nota_final;
+                document.getElementById('c1-score').textContent = data.c1_score;
+                document.getElementById('c2-score').textContent = data.c2_score;
+                document.getElementById('c3-score').textContent = data.c3_score;
+                document.getElementById('c4-score').textContent = data.c4_score;
+                document.getElementById('c5-score').textContent = data.c5_score;
+                // O replace substitui a quebra de linha da IA por tags <br> para HTML
+                document.getElementById('feedback-detalhado').innerHTML = data.feedback_detalhado.replace(/\n/g, '<br>');
+                resultadoDiv.style.display = 'block';
+            } else {
+                statusMessage.textContent = `Erro do servidor: ${data.error || 'Falha desconhecida.'}`;
             }
 
-            try {
-                statusMessage.textContent = 'Corrigindo redação... Aguarde.';
-                const response = await fetch(`${BACKEND_URL}/api/corrigir-redacao`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ redacao: redacao, tema: temaPadrao })
-                });
+        } catch (error) {
+            console.error('Erro na correção:', error);
+            statusMessage.textContent = 'Erro: Não foi possível conectar ao servidor. Verifique a URL da API.';
+        }
+    }
 
-                statusMessage.textContent = '';
-                const data = await response.json();
+    // --- FUNÇÃO PARA SALVAR RASCUNHO (Funcionalidade NOVO/Mantida) ---
+    document.getElementById('btnVoltarSalvar').addEventListener('click', salvarRascunho);
 
-                if (response.ok) {
-                    // Exibir a correção
-                    document.getElementById('nota-final').textContent = data.nota_final;
-                    document.getElementById('c1-score').textContent = data.c1_score;
-                    document.getElementById('c2-score').textContent = data.c2_score;
-                    document.getElementById('c3-score').textContent = data.c3_score;
-                    document.getElementById('c4-score').textContent = data.c4_score;
-                    document.getElementById('c5-score').textContent = data.c5_score;
-                    // O replace substitui a quebra de linha da IA por tags <br> para HTML
-                    document.getElementById('feedback-detalhado').innerHTML = data.feedback_detalhado.replace(/\n/g, '<br>');
-                    resultadoDiv.style.display = 'block';
-                } else {
-                    statusMessage.textContent = `Erro do servidor: ${data.error || 'Falha desconhecida.'}`;
-                }
-
-            } catch (error) {
-                console.error('Erro na correção:', error);
-                statusMessage.textContent = 'Erro: Não foi possível conectar ao servidor. Verifique a URL da API.';
-            }
+    async function salvarRascunho() {
+        const redacaoTexto = redacaoInput.value;
+        
+        if (redacaoTexto.trim() === '') {
+            alert('Não há texto para salvar como rascunho.');
+            return;
         }
 
-        // --- FUNÇÃO PARA SALVAR RASCUNHO (Funcionalidade NOVO/Mantida) ---
-        document.getElementById('btnVoltarSalvar').addEventListener('click', salvarRascunho);
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/salvar-rascunho`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ redacao: redacaoTexto })
+            });
 
-        async function salvarRascunho() {
-            const redacaoTexto = redacaoInput.value;
-            
-            if (redacaoTexto.trim() === '') {
-                alert('Não há texto para salvar como rascunho.');
-                return;
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                alert('Rascunho salvo com sucesso! Redirecionando...');
+                window.location.href = 'dashboard.html';
+            } else {
+                alert('Falha ao salvar rascunho: ' + (result.error || 'Erro interno.'));
             }
 
-            try {
-                const response = await fetch(`${BACKEND_URL}/api/salvar-rascunho`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ redacao: redacaoTexto })
-                });
-
-                const result = await response.json();
-
-                if (response.ok && result.success) {
-                    alert('Rascunho salvo com sucesso! Redirecionando...');
-                    window.location.href = 'dashboard.html';
-                } else {
-                    alert('Falha ao salvar rascunho: ' + (result.error || 'Erro interno.'));
-                }
-
-            } catch (error) {
-                console.error('Erro ao chamar a API de rascunho:', error);
-                alert('Erro ao se comunicar com o servidor para salvar o rascunho.');
-            }
+        } catch (error) {
+            console.error('Erro ao chamar a API de rascunho:', error);
+            alert('Erro ao se comunicar com o servidor para salvar o rascunho.');
         }
-    </script>
+    }
+</script>
 </body>
 </html>
+
