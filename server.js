@@ -5,6 +5,33 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import { Pool } from 'pg'; // <--- Driver Oficial do PostgreSQL
 
+// ----------------------------------------------------------------
+// CONFIGURAÇÃO DO CORS (Solução do problema)
+// ----------------------------------------------------------------
+const allowedOrigins = [
+    // 1. A URL EXATA do seu Static Site (Frontend)
+    'https://corretor-melhorenem-frontend.onrender.com', 
+    // 2. A URL para testes locais (opcional)
+    'http://localhost:3000' 
+];
+
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Permite requisições sem 'origin' (como apps móveis ou Postman)
+        // OU se o 'origin' estiver na lista de permitidos
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Permite todos os métodos necessários
+    credentials: true,
+};
+
+// Use o middleware CORS ANTES das suas rotas de API
+app.use(cors(corsOptions));
+
 // --- Estrutura SQL Adaptada para PostgreSQL ---
 const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS USUARIOS (
@@ -292,3 +319,4 @@ connectToDatabase().then(() => {
         console.log(`Endpoint de correção: /api/corrigir-redacao`);
     });
 });
+
