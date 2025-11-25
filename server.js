@@ -19,7 +19,7 @@ const app = express();
 // B. CONFIGURAÇÃO DO CORS (Solução do Erro CORS anterior)
 const allowedOrigins = [
     // SUBSTITUA ISTO PELA URL EXATA DO SEU STATIC SITE NO RENDER:
-    'https://corretor-melhorenem-frontend.onrender.com', 
+    'https://corretor-melhorenem-uf2e.onrender.com', 
     'http://localhost:3000' 
 ];
 
@@ -276,3 +276,4 @@ const PORT = process.env.PORT || 10000;
         console.error("Erro fatal na inicialização:", error);
     }
 })();
+
