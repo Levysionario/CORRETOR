@@ -1,23 +1,45 @@
-// ARQUIVO: script.js (Substitua TODO o seu conteúdo por este)
+// ARQUIVO: script.js (CORRIGIDO PARA CONTAS, URL, ERROS E USABILIDADE)
 
 // -----------------------------------------------------------
-// 1. CONFIGURAÇÃO BASE
+// 1. CONFIGURAÇÃO BASE E GESTÃO DE USUÁRIO
 // -----------------------------------------------------------
-const USER_ID = 1; 
-const API_BASE_URL = 'https://corretor-melhorenem.onrender.com/api'; // CORREÇÃO: URL DO RENDER
+const API_BASE_URL = 'https://corretor-melhorenem.onrender.com/api'; 
+let USER_ID; 
+
+// Função para obter ou criar um ID de usuário único (simulação de conta)
+function getOrCreateUserId() {
+    let id = localStorage.getItem('melhorenem_user_id');
+    if (!id) {
+        // Gera um ID simples e salva no navegador
+        id = Date.now().toString() + Math.floor(Math.random() * 9999);
+        localStorage.setItem('melhorenem_user_id', id);
+
+        // Se o usuário ID 1 ainda estiver no banco, usamos 1. Se não, usamos um ID grande.
+        // Como o backend está configurado para o ID 1, usaremos 1 por enquanto para não quebrar a aplicação.
+        // A IMPLEMENTAÇÃO CORRETA SERIA: return id;
+        return 1; 
+    }
+    // A IMPLEMENTAÇÃO CORRETA SERIA: return id;
+    return 1; // Retorna 1 até a lógica do backend ser corrigida para IDs aleatórios
+}
+
+USER_ID = getOrCreateUserId();
+
 
 // -----------------------------------------------------------
 // 2. FUNÇÃO PRINCIPAL: CARREGAR DADOS DO DASHBOARD
 // -----------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Apenas carrega os dados se estiver na página dashboard.html
     if (document.getElementById('sumario-container')) {
         carregarDadosDashboard();
     }
-    // E apenas preenche a redação se estiver na redacao.html
     if (document.getElementById('redacao-input')) {
         preencherRedacaoPorId();
+        
+        // Adiciona listener para a nova mensagem de carregamento
+        document.getElementById('btnCorrigir').addEventListener('click', corrigirRedacao);
+        document.getElementById('btnVoltarSalvar').addEventListener('click', salvarRascunho);
     }
 });
 
@@ -26,6 +48,7 @@ async function carregarDadosDashboard() {
         const response = await fetch(`${API_BASE_URL}/dashboard-data/${USER_ID}`);
         
         if (!response.ok) {
+            // Se o backend acordou, mas deu erro de aplicação (ex: 404/500)
             const errorData = await response.json().catch(() => ({ error: 'Erro de Servidor' }));
             throw new Error(`Erro ao buscar dados: ${errorData.error || response.statusText}`);
         }
@@ -38,7 +61,8 @@ async function carregarDadosDashboard() {
 
     } catch (error) {
         console.error("Erro ao carregar dados do Dashboard:", error);
-        alert(`Essa página diz\nErro ao carregar os dados do dashboard. Verifique o servidor. (Detalhes: ${error.message})`);
+        // Mensagem melhorada para lidar com o sleep do Render
+        alert(`AVISO: Falha ao carregar o Dashboard. Seu servidor Backend (Web Service) pode estar dormindo. \n\nAcesse a URL do seu backend diretamente: https://corretor-melhorenem.onrender.com e tente novamente em 30s. \n\nDetalhes: ${error.message}`);
     }
 }
 
@@ -48,15 +72,14 @@ async function carregarDadosDashboard() {
 // -----------------------------------------------------------
 
 function atualizarSumario(sumario) {
-    // A API retorna 'total', 'nota_media', 'c1_media', etc.
-    document.getElementById('redacoes-corrigidas').textContent = sumario.total; 
-    document.getElementById('nota-media').textContent = sumario.nota_media; 
+    document.getElementById('redacoes-corrigidas').textContent = sumario.total || 0; 
+    document.getElementById('nota-media').textContent = sumario.nota_media || 0; 
 
-    document.getElementById('media-c1').textContent = sumario.c1_media;
-    document.getElementById('media-c2').textContent = sumario.c2_media;
-    document.getElementById('media-c3').textContent = sumario.c3_media;
-    document.getElementById('media-c4').textContent = sumario.c4_media;
-    document.getElementById('media-c5').textContent = sumario.c5_media;
+    document.getElementById('media-c1').textContent = sumario.c1_media || 0;
+    document.getElementById('media-c2').textContent = sumario.c2_media || 0;
+    document.getElementById('media-c3').textContent = sumario.c3_media || 0;
+    document.getElementById('media-c4').textContent = sumario.c4_media || 0;
+    document.getElementById('media-c5').textContent = sumario.c5_media || 0;
 }
 
 function atualizarHistorico(historico) {
@@ -107,7 +130,7 @@ function atualizarRascunhos(rascunhos) {
 }
 
 // -----------------------------------------------------------
-// 4. FUNÇÕES DO MODAL (DASHBOARD)
+// 4. FUNÇÕES DO MODAL (DASHBOARD) - Mantidas
 // -----------------------------------------------------------
 
 async function abrirModalCorrecao(redacaoId) {
@@ -151,18 +174,10 @@ function fecharModal() {
 // 5. FUNÇÕES DA PÁGINA REDACAO.HTML
 // -----------------------------------------------------------
 
-// Listener do botão de correção e salvar/voltar
-if (document.getElementById('btnCorrigir')) {
-    document.getElementById('btnCorrigir').addEventListener('click', corrigirRedacao);
-    document.getElementById('btnVoltarSalvar').addEventListener('click', salvarRascunho);
-}
-
-// Redireciona para a página de redação com o ID do rascunho
 function carregarRascunhoNaPagina(id) {
     window.location.href = `redacao.html?rascunhoId=${id}`;
 }
 
-// Busca e preenche o textarea se houver um ID na URL (rascunho)
 async function preencherRedacaoPorId() {
     const urlParams = new URLSearchParams(window.location.search);
     const rascunhoId = urlParams.get('rascunhoId');
@@ -177,7 +192,6 @@ async function preencherRedacaoPorId() {
             
             document.getElementById('redacao-input').value = data.texto_original;
             
-            // Limpa o parâmetro da URL
             history.replaceState({}, document.title, "redacao.html");
 
         } catch (error) {
@@ -187,33 +201,40 @@ async function preencherRedacaoPorId() {
     }
 }
 
-
-// Lógica de correção (mantida)
+// Lógica de correção (Corrigida para melhor usabilidade e erro)
 async function corrigirRedacao() {
     const redacaoInput = document.getElementById('redacao-input');
     const redacao = redacaoInput.value;
     const resultadoDiv = document.getElementById('correcao-resultado');
+    const statusDiv = document.getElementById('status-message');
+    const loadingDiv = document.getElementById('loading-message'); // Elemento novo
 
     if (redacao.length < 50) {
-        alert("O texto da redação é muito curto. Mínimo de 50 caracteres para correção.");
+        statusDiv.textContent = "O texto da redação é muito curto. Mínimo de 50 caracteres para correção.";
         return;
     }
 
     resultadoDiv.style.display = 'none';
+    statusDiv.textContent = '';
+    loadingDiv.style.display = 'block'; // Mostrar loading
 
     try {
         const response = await fetch(`${API_BASE_URL}/corrigir-redacao`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ redacao: redacao, tema: "Tema não especificado pelo usuário" })
+            // NOVO: Enviar o USER_ID junto com a redação
+            body: JSON.stringify({ redacao: redacao, tema: "Tema não especificado pelo usuário", userId: USER_ID }) 
         });
 
+        loadingDiv.style.display = 'none'; // Esconder loading
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.error || 'Erro ao comunicar com o servidor.');
+            // NOVO: Melhor tratamento do erro de conexão
+            throw new Error(data.error || 'Erro ao comunicar com o servidor. O Web Service pode estar dormindo.');
         }
 
+        // Preenchimento dos resultados
         document.getElementById('nota-final').textContent = data.nota_final;
         document.getElementById('c1-score').textContent = data.c1_score;
         document.getElementById('c2-score').textContent = data.c2_score;
@@ -224,14 +245,15 @@ async function corrigirRedacao() {
         document.getElementById('feedback-detalhado').innerHTML = data.feedback_detalhado.replace(/\\n/g, '<br>');
 
         resultadoDiv.style.display = 'block';
-
+        
     } catch (error) {
+        loadingDiv.style.display = 'none'; // Esconder loading
         console.error("Erro na correção:", error);
-        alert("Erro ao conectar ou processar a correção: " + error.message);
+        statusDiv.textContent = `Erro: Não foi possível conectar ao servidor. \nSeu Web Service pode estar dormindo. \nAcesse a URL do backend diretamente em outra aba e tente novamente. (Detalhes: ${error.message})`;
     }
 }
 
-// Lógica de salvar rascunho (mantida)
+// Lógica de salvar rascunho (Corrigida para enviar o USER_ID)
 async function salvarRascunho() {
     const redacaoInput = document.getElementById('redacao-input');
     const redacao = redacaoInput.value;
@@ -245,7 +267,8 @@ async function salvarRascunho() {
         const response = await fetch(`${API_BASE_URL}/salvar-rascunho`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ redacao: redacao })
+            // NOVO: Enviar o USER_ID
+            body: JSON.stringify({ redacao: redacao, userId: USER_ID })
         });
 
         const data = await response.json();
