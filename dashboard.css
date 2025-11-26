@@ -1,4 +1,4 @@
-/* ARQUIVO: dashboard.css (CORRIGIDO E MELHORADO) */
+/* ARQUIVO: dashboard.css (COMPLETO E MELHORADO) */
 
 .header-dashboard {
     text-align: center;
@@ -52,7 +52,7 @@
 }
 
 .card-competencia {
-    background: #e9ecef; /* Cor de fundo suave */
+    background: #e9ecef; 
     padding: 15px;
     border-radius: 6px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -181,7 +181,7 @@
     flex-wrap: wrap;
     gap: 10px;
     margin-bottom: 20px;
-    background: #f1f1f1;
+    background: #e9f7ff;
     padding: 15px;
     border-radius: 5px;
 }
@@ -189,7 +189,7 @@
 .modal-body .score-large {
     font-size: 2em;
     font-weight: bold;
-    color: var(--secondary-color);
+    color: var(--primary-color);
     margin-right: 20px;
 }
 
@@ -200,7 +200,7 @@
 
 .modal-body .score-small {
     font-weight: bold;
-    color: var(--primary-color);
+    color: var(--secondary-color);
 }
 
 .feedback-text {
@@ -209,7 +209,7 @@
     padding: 15px;
     margin-top: 15px;
     border-radius: 5px;
-    white-space: pre-wrap; /* Para respeitar \n */
+    white-space: pre-wrap; 
 }
 
 /* RESPONSIVIDADE */
