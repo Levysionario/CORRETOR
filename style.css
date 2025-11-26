@@ -1,156 +1,236 @@
-/* ARQUIVO: style.css (Estilos Globais e Index.html) */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap');
+/* ARQUIVO: style.css (COMPLETO E MELHORADO) */
 
-/* Definição de Variáveis de Cores e Fontes */
 :root {
-    --color-gradient-start: #d4f7c4;
-    --color-gradient-end: #b3c2ff;
-    --color-primary: #3b00ff;
-    --color-primary-dark: #5d33ff;
-    --color-secondary: #00ffc8;
-    --color-text-dark: #333;
-    --color-text-light: #fff;
-    --color-border-outline: #555;
-    --color-gray-btn: #6c757d;
-    --font-main: 'Poppins', sans-serif;
+    --primary-color: #007bff; /* Azul vibrante */
+    --secondary-color: #28a745; /* Verde para CTAs secundárias */
+    --background-color: #f8f9fa; /* Fundo muito claro */
+    --card-background: #ffffff; /* Fundo branco para cards */
+    --text-color: #343a40; /* Texto escuro */
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    font-family: 'Arial', sans-serif;
 }
 
-/* Estilo Base: Aplicado em todas as páginas */
 body {
-    font-family: var(--font-main);
-    background: linear-gradient(135deg, var(--color-gradient-start), var(--color-gradient-end));
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
     min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: var(--color-text-dark);
 }
 
 .container {
-    width: 90%;
     max-width: 1200px;
+    margin: 0 auto;
     padding: 20px;
 }
 
-/* Estilos de HEADER e TÍTULO (Específicos para index.html) */
-.header h1 {
-    font-size: 5vw;
-    font-weight: 800;
-    letter-spacing: -2px;
+main {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 30px;
+    background: var(--card-background);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
+h1 {
+    color: var(--primary-color);
+    font-size: 2.5em;
+    border-bottom: 3px solid var(--secondary-color);
+    padding-bottom: 10px;
     margin-bottom: 20px;
-    position: relative;
-    display: inline-block;
-    color: var(--color-primary);
-    text-shadow: 2px 2px 0 var(--color-text-light);
-}
-.header .plus {
-    color: #ff007b;
 }
 
-/* Estrutura Principal da Landing Page */
-.content {
-    display: flex;
-    gap: 50px;
-    align-items: flex-start;
-}
-.left-panel {
-    flex: 1;
-    max-width: 450px;
-}
-.right-panel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    position: relative;
+h2 {
+    color: var(--text-color);
+    margin-top: 25px;
+    margin-bottom: 15px;
+    font-size: 1.8em;
 }
 
-/* Botão CTA Grande */
-/* ARQUIVO: style.css (Ajuste/Adicione este bloco) */
+h3 {
+    font-size: 1.4em;
+    color: var(--secondary-color);
+    margin-top: 20px;
+}
+
+/* --- Botões Gerais --- */
+
+.btn-principal, .btn-secundario, .btn-cta, .btn-cta-small {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    text-align: center;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-principal {
+    background-color: var(--primary-color);
+    color: white;
+    margin-top: 20px;
+    width: 100%;
+    font-size: 1.1em;
+}
+
+.btn-principal:hover {
+    background-color: #0056b3;
+}
+
+.btn-secundario {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-secundario:hover {
+    background-color: #5a6268;
+}
 
 .btn-cta {
-    /* Estilos Visuais do Botão (Mantenha o que você já tem para cor, etc.) */
-    display: inline-block; /* Crucial para o padding e margin funcionarem */
-    padding: 15px 40px;
-    font-size: 1.2rem;
-    font-weight: 700;
+    background-color: var(--secondary-color);
     color: white;
-    background-color: var(--color-primary-dark); /* Roxo, por exemplo: #6400FF */
-    border-radius: 12px;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.1s;
-    box-shadow: 0 5px 15px rgba(100, 0, 255, 0.4);
-
-    /* 1. CORREÇÃO: Remove o sublinhado */
-    text-decoration: none; 
-
-    /* 2. CORREÇÃO: Aumenta o espaçamento superior para afastá-lo dos textos */
-    margin-top: 30px; /* Ajuste este valor (30px) para mover o botão para baixo */
+    font-size: 1.2em;
+    padding: 12px 30px;
 }
 
 .btn-cta:hover {
-    background-color: #5d00ff; /* Cor um pouco mais clara no hover */
-    transform: translateY(-2px);
+    background-color: #1e7e34;
 }
 
-/* --- Ajuste no Parágrafo Acima (Opcional, mas recomendado) --- */
-.left-panel p {
-    margin-bottom: 10px; /* Garante que os parágrafos tenham um espaçamento consistente */
+.btn-cta-small {
+    background-color: var(--secondary-color);
+    color: white;
+    font-size: 1em;
+    padding: 8px 15px;
+    margin-right: 10px;
+    margin-bottom: 15px;
+}
+.btn-cta-small:hover {
+    background-color: #1e7e34;
 }
 
-.left-panel h2 {
-    margin-top: 20px;
-    margin-bottom: 5px;
-}
-/* Media Queries */
-@media (max-width: 900px) {
-    .content {
-        flex-direction: column;
-        align-items: center;
-        gap: 30px;
-    }
+/* --- LANDING PAGE (index.html) --- */
 
-    .header h1 {
-        font-size: 10vw;
-        text-align: center;
-        display: block;
-    }
-}
-/* ARQUIVO: style.css (Adicione ou verifique este bloco) */
-
-/* ... (seus estilos existentes) ... */
-
-.image-wrapper {
-    width: 100%;
-    max-width: 600px; /* Ou um valor que funcione bem para você */
-    border-radius: 15px;
-    overflow: hidden; /* Garante que a imagem respeite o border-radius */
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    transform: rotate(0deg); /* Um leve toque para dar estilo */
-    transition: transform 0.3s ease-in-out;
+.landing-page {
+    text-align: center;
 }
 
-.image-wrapper:hover {
-    transform: rotate(3deg);
+.landing-page .header {
+    padding: 50px 0;
+}
+
+.landing-page .header h1 {
+    font-size: 4em;
+    border-bottom: none;
+    color: var(--primary-color);
+}
+
+.landing-page .plus {
+    color: var(--secondary-color);
+}
+
+.main-flex {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+    gap: 50px;
+    margin-top: 30px;
+}
+
+.left-panel {
+    flex: 1;
+}
+
+.right-panel {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
 }
 
 .image-wrapper img {
-    width: 100%;
+    max-width: 100%;
     height: auto;
-    display: block; /* Remove espaço extra abaixo da imagem */
+    border-radius: 8px;
+    box-shadow: var(--shadow);
 }
 
-/* ... (suas media queries) ... */
-@media (max-width: 900px) {
-    /* ... (seus estilos existentes) ... */
-
-    .image-wrapper {
-        transform: rotate(0deg); /* Desativa a rotação em telas pequenas */
+@media (max-width: 768px) {
+    .main-flex {
+        flex-direction: column;
+        text-align: center;
     }
+    .right-panel {
+        margin-top: 30px;
+    }
+}
+
+/* --- ESTILOS DE REDACAO.HTML --- */
+
+#redacao-input {
+    width: 100%;
+    min-height: 400px;
+    padding: 15px;
+    font-size: 1em;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    resize: vertical;
+    margin-bottom: 10px;
+}
+
+.top-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.notas-container {
+    background: #e9f7ff;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 15px;
+    border: 1px solid #cce5ff;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px 30px;
+    align-items: baseline;
+}
+
+.score-large {
+    font-size: 2.2em;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-right: 15px;
+    display: block;
+    width: 100%; /* Para quebrar a linha */
+}
+
+.score-item {
+    font-size: 1em;
+    color: var(--text-color);
+}
+
+.score-small {
+    font-weight: bold;
+    color: var(--secondary-color);
+}
+
+.feedback-text {
+    background: #fff3cd;
+    border-left: 5px solid #ffc107;
+    padding: 15px;
+    margin-top: 15px;
+    border-radius: 5px;
+    white-space: pre-wrap; /* Para respeitar \n */
 }
