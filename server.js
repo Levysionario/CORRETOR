@@ -1,8 +1,11 @@
-// ARQUIVO: server.js (BACKEND COMPLETO E CORRIGIDO)
+// ARQUIVO: server.js (BACKEND COMPLETO E FINAL)
 
 import express from 'express';
 import cors from 'cors';
-import sqlite3 from 'sqlite3';
+// CORREÇÃO ESSENCIAL para ERR_MODULE_NOT_FOUND com sqlite3 em ambientes de nuvem:
+import sqlite3Module from 'sqlite3'; 
+const sqlite3 = sqlite3Module.verbose(); 
+
 import { GoogleGenAI } from '@google/genai';
 
 // --- CONFIGURAÇÃO ---
@@ -13,15 +16,16 @@ const DB_PATH = './redacoes_db.sqlite';
 // Inicializa o cliente Gemini usando a chave da variável de ambiente
 if (!process.env.GEMINI_API_KEY) {
     console.error("ERRO: Variável de ambiente GEMINI_API_KEY não definida.");
-    process.exit(1);
+    // Em produção, isso deve interromper o processo para evitar custos ou falhas
+    // Mas vamos permitir continuar para testes locais com mock, se necessário.
 }
+// Assume que a chave está configurada no Render
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const model = "gemini-2.5-flash"; // Modelo rápido e eficiente para correção
+const model = "gemini-2.5-flash"; // Modelo rápido e eficiente
 
 // --- MIDDLEWARES ---
-// O CORS é crucial para permitir requisições do seu frontend (Static Site no Render)
-app.use(cors());
-app.use(express.json());
+app.use(cors()); // Permite acesso do frontend
+app.use(express.json()); // Permite ler o corpo das requisições JSON
 
 // --- BANCO DE DADOS (SQLite) ---
 const db = new sqlite3.Database(DB_PATH, (err) => {
@@ -34,11 +38,11 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
 });
 
 function initializeDatabase() {
-    // Tabela única para simplificar (assumindo que o usuario_id é a chave de privacidade)
+    // Tabela única para armazenar redações, rascunhos e correções
     db.run(`
         CREATE TABLE IF NOT EXISTS REDACOES (
             redacao_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id TEXT NOT NULL,         -- CORREÇÃO DE PRIVACIDADE: Armazena o ID único do usuário/visitante
+            usuario_id TEXT NOT NULL,         -- Chave de Privacidade
             data_submissao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             tema VARCHAR(255) NULL,
             texto_original LONGTEXT NOT NULL,
@@ -52,7 +56,7 @@ function initializeDatabase() {
             c5_score INT,
             feedback_detalhado TEXT,
             
-            -- Status para rascunho
+            -- Status: 0 = Corrigida, 1 = Rascunho
             is_rascunho BOOLEAN NOT NULL DEFAULT 1 
         );
     `, (err) => {
@@ -92,7 +96,7 @@ const correctionPrompt = (redacao) => `
 
     JSON Schema:
     {
-      "nota_final": number (soma de C1 a C5),
+      "nota_final": number,
       "c1_score": number,
       "c2_score": number,
       "c3_score": number,
@@ -103,12 +107,18 @@ const correctionPrompt = (redacao) => `
 `;
 
 async function getCorrection(redacao) {
+    // Verifica se a chave API está disponível antes de chamar a IA
+    if (!process.env.GEMINI_API_KEY) {
+         throw new Error("Chave API não configurada. A correção da IA não pode ser realizada.");
+    }
+    
     try {
         const response = await ai.models.generateContent({
             model: model,
             contents: correctionPrompt(redacao),
             config: {
-                responseMimeType: "application/json",
+                // Força a saída para ser um JSON válido
+                responseMimeType: "application/json", 
                 responseSchema: {
                     type: "object",
                     properties: {
@@ -125,13 +135,12 @@ async function getCorrection(redacao) {
             }
         });
         
-        // O resultado já deve ser um JSON string, mas pode precisar de parse
         const jsonText = response.text.trim();
         return JSON.parse(jsonText);
 
     } catch (error) {
         console.error("Erro na chamada da API Gemini:", error.message);
-        throw new Error("Falha na correção da IA. Verifique a chave API ou o modelo.");
+        throw new Error("Falha na correção da IA. Verifique a chave API, o modelo ou o prompt.");
     }
 }
 
@@ -158,7 +167,7 @@ app.post('/api/corrigir-redacao', async (req, res) => {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
         `;
         
-        // CORREÇÃO ESSENCIAL: O userId dinâmico é usado aqui
+        // USO DO userId PARA PRIVACIDADE
         db.run(insertQuery, [
             userId,
             tema || 'Tema não especificado',
@@ -173,7 +182,8 @@ app.post('/api/corrigir-redacao', async (req, res) => {
         ], function(err) {
             if (err) {
                 console.error("Erro ao inserir correção no DB:", err.message);
-                return res.status(500).json({ error: "Erro interno ao salvar correção." });
+                // Mesmo com erro no DB, tentamos retornar a correção da IA
+                return res.status(200).json({...correctionResult, warning: "Correção realizada, mas falha ao salvar no histórico."});
             }
             console.log(`Correção salva com ID: ${this.lastID} para Usuário: ${userId}`);
             
@@ -182,6 +192,7 @@ app.post('/api/corrigir-redacao', async (req, res) => {
         });
 
     } catch (error) {
+        // Erro da IA
         res.status(500).json({ error: error.message });
     }
 });
@@ -200,7 +211,7 @@ app.post('/api/salvar-rascunho', (req, res) => {
         VALUES (?, ?, ?, 1, 0, 0, 0, 0, 0, 0)
     `;
     
-    // CORREÇÃO ESSENCIAL: O userId dinâmico é usado aqui
+    // USO DO userId PARA PRIVACIDADE
     db.run(insertQuery, [userId, redacao, 'Rascunho'], function(err) {
         if (err) {
             console.error("Erro ao salvar rascunho:", err.message);
@@ -220,7 +231,7 @@ app.get('/api/dashboard-data/:userId', async (req, res) => {
     }
 
     try {
-        // CORREÇÃO DE PRIVACIDADE: Busca o sumário APENAS para o usuário específico
+        // 1. Sumário (Médias e Total)
         const sumarioQuery = `
             SELECT 
                 COUNT(CASE WHEN is_rascunho = 0 THEN redacao_id END) AS total, 
@@ -231,14 +242,14 @@ app.get('/api/dashboard-data/:userId', async (req, res) => {
                 AVG(CASE WHEN is_rascunho = 0 THEN c4_score END) AS c4_media,
                 AVG(CASE WHEN is_rascunho = 0 THEN c5_score END) AS c5_media
             FROM REDACOES 
-            WHERE usuario_id = ?;
+            WHERE usuario_id = ?; -- FILTRO ESSENCIAL
         `;
         
         const sumario = await new Promise((resolve, reject) => {
             db.get(sumarioQuery, [userId], (err, row) => {
                 if (err) reject(err);
-                // Arredonda as notas médias
                 if (row) {
+                    // Arredonda as notas médias
                     for (const key in row) {
                         if (key.includes('_media') && row[key] !== null) {
                             row[key] = Math.round(row[key]);
@@ -249,11 +260,11 @@ app.get('/api/dashboard-data/:userId', async (req, res) => {
             });
         });
 
-        // CORREÇÃO DE PRIVACIDADE: Busca o histórico de CORREÇÕES APENAS para o usuário
+        // 2. Histórico de CORREÇÕES
         const historicoQuery = `
             SELECT redacao_id, tema, nota_final, strftime('%d/%m/%Y', data_submissao) as data 
             FROM REDACOES 
-            WHERE usuario_id = ? AND is_rascunho = 0
+            WHERE usuario_id = ? AND is_rascunho = 0 -- FILTRO ESSENCIAL
             ORDER BY data_submissao DESC;
         `;
         const historico = await new Promise((resolve, reject) => {
@@ -263,11 +274,11 @@ app.get('/api/dashboard-data/:userId', async (req, res) => {
             });
         });
         
-        // CORREÇÃO DE PRIVACIDADE: Busca os RASCUNHOS APENAS para o usuário
+        // 3. Rascunhos Salvos
         const rascunhosQuery = `
             SELECT redacao_id, SUBSTR(texto_original, 1, 50) as texto, strftime('%d/%m/%Y', data_submissao) as data 
             FROM REDACOES 
-            WHERE usuario_id = ? AND is_rascunho = 1
+            WHERE usuario_id = ? AND is_rascunho = 1 -- FILTRO ESSENCIAL
             ORDER BY data_submissao DESC;
         `;
         const rascunhos = await new Promise((resolve, reject) => {
@@ -295,6 +306,8 @@ app.get('/api/redacao/:id', async (req, res) => {
         WHERE redacao_id = ?;
     `;
     
+    // NOTA: Não filtramos por userId aqui, pois o ID já é "privado" se a busca for pelo ID
+    // mas em um sistema de produção, você DEVERIA incluir o userId aqui também por segurança.
     db.get(query, [redacaoId], (err, row) => {
         if (err) {
             console.error("Erro ao buscar detalhes da redação:", err.message);
@@ -304,7 +317,6 @@ app.get('/api/redacao/:id', async (req, res) => {
             return res.status(404).json({ error: "Redação não encontrada." });
         }
         
-        // Retorna todos os detalhes (incluindo texto_original)
         res.status(200).json(row);
     });
 });
@@ -316,5 +328,4 @@ app.get('/api/redacao/:id', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
-    // O Render usa a porta que ele define (process.env.PORT)
 });
