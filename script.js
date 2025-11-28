@@ -5,7 +5,7 @@
 // -----------------------------------------------------------
 
 // *** AÇÃO OBRIGATÓRIA: SUBSTITUA PELA SUA URL DE BACKEND NO RENDER ***
-const API_BASE_URL = 'https://SEU-URL-DO-RENDER.onrender.com/api'; 
+const API_BASE_URL = 'https://corretor-melhorenem.onrender.com'; 
 // Exemplo: const API_BASE_URL = 'https://corretor-melhorenem-backend-xyz.onrender.com/api';
 
 // Funções para garantir um ID de usuário único (GUEST_...) e resolver o problema de privacidade
@@ -296,3 +296,4 @@ async function salvarRascunho() {
         alert("Erro ao salvar rascunho: " + error.message);
     }
 }
+
