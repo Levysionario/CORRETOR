@@ -1,30 +1,28 @@
-// ARQUIVO: script.js (COMPLETO E CORRIGIDO PARA PRIVACIDADE)
+// ARQUIVO: script.js (CÓDIGO COMPLETO E CORRIGIDO)
 
 // -----------------------------------------------------------
-// 1. CONFIGURAÇÃO BASE E GESTÃO DE USUÁRIO (Simulação de Contas Únicas)
+// 1. CONFIGURAÇÃO BASE E GESTÃO DE ID ÚNICO
 // -----------------------------------------------------------
-// CORREÇÃO 1: Mudar a URL base de localhost para a URL do Render (Produção)
-const API_BASE_URL = 'https://corretor-melhorenem.onrender.com/api'; 
-let USER_ID; 
 
-// CORREÇÃO 2: Função para obter ou criar um ID de usuário único e real
-function getOrCreateUniqueUserId() {
-    let id = localStorage.getItem('melhorenem_unique_user_id');
-    if (!id) {
-        // Gera um ID grande e salva no navegador para identificação
-        id = 'GUEST_' + Date.now().toString() + Math.floor(Math.random() * 99999);
-        localStorage.setItem('melhorenem_unique_user_id', id);
+// *** AÇÃO OBRIGATÓRIA: SUBSTITUA PELA SUA URL DE BACKEND NO RENDER ***
+const API_BASE_URL = 'https://SEU-URL-DO-RENDER.onrender.com/api'; 
+// Exemplo: const API_BASE_URL = 'https://corretor-melhorenem-backend-xyz.onrender.com/api';
+
+// Funções para garantir um ID de usuário único (GUEST_...) e resolver o problema de privacidade
+function getOrCreateUserId() {
+    let userId = localStorage.getItem('appUserId');
+    if (!userId) {
+        // Gera um ID único simples (ex: GUEST_1a2b3c4d)
+        userId = 'GUEST_' + Math.random().toString(36).substring(2, 10);
+        localStorage.setItem('appUserId', userId);
     }
-    // Agora, o USER_ID será único para este navegador
-    return id; 
+    return userId;
 }
 
-// Inicializa o ID que será usado em todas as requisições
-USER_ID = getOrCreateUniqueUserId();
-
+const USER_ID = getOrCreateUserId(); 
 
 // -----------------------------------------------------------
-// 2. FUNÇÃO PRINCIPAL: CARREGAR DADOS DO DASHBOARD E LISTENERS
+// 2. FUNÇÃO PRINCIPAL: CARREGAR DADOS DO DASHBOARD
 // -----------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -32,24 +30,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('sumario-container')) {
         carregarDadosDashboard();
     }
-    
     // E apenas preenche a redação se estiver na redacao.html
     if (document.getElementById('redacao-input')) {
         preencherRedacaoPorId();
     }
     
-    // Listener do botão de correção e salvar/voltar 
+    // Configura Listeners
     if (document.getElementById('btnCorrigir')) {
         document.getElementById('btnCorrigir').addEventListener('click', corrigirRedacao);
+    }
+    if (document.getElementById('btnVoltarSalvar')) {
         document.getElementById('btnVoltarSalvar').addEventListener('click', salvarRascunho);
+    }
+    if (document.getElementById('modal-close')) {
+        document.getElementById('modal-close').addEventListener('click', fecharModal);
     }
 });
 
 
 async function carregarDadosDashboard() {
     try {
-        // CORREÇÃO: O USER_ID dinâmico é usado aqui
-        const response = await fetch(`${API_BASE_URL}/dashboard-data/${USER_ID}`); 
+        // Usa o ID único para buscar dados privados
+        const response = await fetch(`${API_BASE_URL}/dashboard-data/${USER_ID}`);
         
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ error: 'Erro de Servidor' }));
@@ -58,14 +60,14 @@ async function carregarDadosDashboard() {
 
         const data = await response.json();
         
+        // Atualiza as seções
         atualizarSumario(data.sumario);
         atualizarHistorico(data.historico);
         atualizarRascunhos(data.rascunhos); 
 
     } catch (error) {
         console.error("Erro ao carregar dados do Dashboard:", error);
-        // Mensagem melhorada para lidar com o sleep do Render (Erro de conexão)
-        alert(`AVISO: Falha ao carregar o Dashboard. Seu servidor Backend (Web Service) pode estar em modo 'sleep' no Render. \n\nAcesse a URL do seu backend diretamente em outra aba: https://corretor-melhorenem.onrender.com e tente novamente em 30s. \n\nDetalhes: ${error.message}`);
+        alert(`Essa página diz\nErro ao carregar os dados do dashboard. Verifique o servidor. (Detalhes: ${error.message})`);
     }
 }
 
@@ -75,15 +77,15 @@ async function carregarDadosDashboard() {
 // -----------------------------------------------------------
 
 function atualizarSumario(sumario) {
-    // CORREÇÃO: Usando as chaves que o backend deve retornar (total, nota_media, cX_media)
-    document.getElementById('redacoes-corrigidas').textContent = sumario.total || 0; 
-    document.getElementById('nota-media').textContent = sumario.nota_media || 0; 
+    // CORREÇÃO: Usando as chaves do banco de dados (snake_case)
+    document.getElementById('redacoes-corrigidas').textContent = sumario.total || 0;
+    document.getElementById('nota-media').textContent = sumario.nota_media || 0;
 
-    document.getElementById('media-c1').textContent = Math.round(sumario.c1_media || 0);
-    document.getElementById('media-c2').textContent = Math.round(sumario.c2_media || 0);
-    document.getElementById('media-c3').textContent = Math.round(sumario.c3_media || 0);
-    document.getElementById('media-c4').textContent = Math.round(sumario.c4_media || 0);
-    document.getElementById('media-c5').textContent = Math.round(sumario.c5_media || 0);
+    document.getElementById('media-c1').textContent = sumario.c1_media || 0;
+    document.getElementById('media-c2').textContent = sumario.c2_media || 0;
+    document.getElementById('media-c3').textContent = sumario.c3_media || 0;
+    document.getElementById('media-c4').textContent = sumario.c4_media || 0;
+    document.getElementById('media-c5').textContent = sumario.c5_media || 0;
 }
 
 function atualizarHistorico(historico) {
@@ -99,15 +101,14 @@ function atualizarHistorico(historico) {
         const li = document.createElement('li');
         li.innerHTML = `
             <div>
-                <strong>${redacao.tema}</strong> 
+                <strong>${redacao.tema || 'Sem Título'}</strong> 
                 <span class="data-historico">(${redacao.data})</span>
             </div>
             <span class="nota-historico">${redacao.nota_final}</span>
         `;
-        // Usa redacao.redacao_id ou redacao.id dependendo do backend
-        const id = redacao.redacao_id || redacao.id; 
         li.addEventListener('click', () => {
-            abrirModalCorrecao(id); 
+            // CORREÇÃO: Chave do ID da redação deve ser redacao_id
+            abrirModalCorrecao(redacao.redacao_id); 
         });
         listElement.appendChild(li);
     });
@@ -126,7 +127,7 @@ function atualizarRascunhos(rascunhos) {
         const li = document.createElement('li');
         li.innerHTML = `
             <div>
-                <span class="rascunho-texto">${rascunho.texto}</span>
+                <span class="rascunho-texto">${rascunho.texto}...</span>
                 <span class="data-historico">(${rascunho.data})</span>
             </div>
             <button onclick="carregarRascunhoNaPagina(${rascunho.redacao_id})" class="btn-abrir">Abrir</button>
@@ -149,27 +150,20 @@ async function abrirModalCorrecao(redacaoId) {
 
         const data = await response.json();
         
-        // NOVO: Adicionado para preencher o texto original no modal (se o HTML tiver o ID modal-texto-original)
-        if(document.getElementById('modal-texto-original')) {
-            document.getElementById('modal-texto-original').textContent = data.texto_original || 'Texto Original Indisponível';
-        }
-        
         document.getElementById('modal-tema').textContent = data.tema || `Correção ID: ${data.redacao_id}`;
-        document.getElementById('modal-nota-final').textContent = data.nota_final;
-        document.getElementById('modal-c1-score').textContent = data.c1_score || 'N/A';
-        document.getElementById('modal-c2-score').textContent = data.c2_score || 'N/A';
-        document.getElementById('modal-c3-score').textContent = data.c3_score || 'N/A';
-        document.getElementById('modal-c4-score').textContent = data.c4_score || 'N/A';
-        document.getElementById('modal-c5-score').textContent = data.c5_score || 'N/A';
+        document.getElementById('modal-nota-final').textContent = data.nota_final || 'N/A';
+        document.getElementById('modal-c1-score').textContent = data.c1_score || 0;
+        document.getElementById('modal-c2-score').textContent = data.c2_score || 0;
+        document.getElementById('modal-c3-score').textContent = data.c3_score || 0;
+        document.getElementById('modal-c4-score').textContent = data.c4_score || 0;
+        document.getElementById('modal-c5-score').textContent = data.c5_score || 0;
         
-        // Substitui a quebra de linha do JSON por <br>
+        // Substitui a quebra de linha do JSON (\n) por <br>
         document.getElementById('modal-feedback-detalhado').innerHTML = data.feedback_detalhado ? data.feedback_detalhado.replace(/\\n/g, '<br>') : 'Feedback indisponível.';
 
         const modal = document.getElementById('modal-correcao');
-        if (modal) {
-            modal.style.display = 'flex';
-            setTimeout(() => modal.classList.add('active'), 10);
-        }
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('active'), 10);
 
     } catch (error) {
         console.error("Erro ao abrir modal de correção:", error);
@@ -179,10 +173,8 @@ async function abrirModalCorrecao(redacaoId) {
 
 function fecharModal() {
     const modal = document.getElementById('modal-correcao');
-    if(modal) {
-        modal.classList.remove('active');
-        setTimeout(() => modal.style.display = 'none', 300); 
-    }
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300); 
 }
 
 // -----------------------------------------------------------
@@ -220,37 +212,37 @@ async function preencherRedacaoPorId() {
 }
 
 
-// Lógica de correção (corrigida para enviar o USER_ID)
+// Lógica de correção (CORRIGIDA)
 async function corrigirRedacao() {
     const redacaoInput = document.getElementById('redacao-input');
     const redacao = redacaoInput.value;
     const loading = document.getElementById('loading');
     const resultadoDiv = document.getElementById('correcao-resultado');
-    const statusDiv = document.getElementById('status-message'); // Adicionado o statusDiv
 
     if (redacao.length < 50) {
-        statusDiv.textContent = "O texto da redação é muito curto. Mínimo de 50 caracteres para correção.";
+        alert("O texto da redação é muito curto. Mínimo de 50 caracteres para correção.");
         return;
     }
 
-    // Limpa e mostra a tela de carregamento (melhora usabilidade)
+    loading.style.display = 'block';
     resultadoDiv.style.display = 'none';
-    statusDiv.textContent = '';
-    loading.style.display = 'block'; 
 
     try {
         const response = await fetch(`${API_BASE_URL}/corrigir-redacao`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // CORREÇÃO ESSENCIAL: Envia o USER_ID para o backend
-            body: JSON.stringify({ redacao: redacao, tema: "Tema não especificado pelo usuário", userId: USER_ID }) 
+            // CORREÇÃO: Enviando o userId junto com a redação
+            body: JSON.stringify({ 
+                redacao: redacao, 
+                tema: "Tema não especificado pelo usuário",
+                userId: USER_ID 
+            })
         });
 
-        loading.style.display = 'none'; 
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.error || 'Erro ao comunicar com o servidor. O Web Service pode estar dormindo.');
+            throw new Error(data.error || 'Erro ao comunicar com o servidor. Verifique a chave API.');
         }
 
         document.getElementById('nota-final').textContent = data.nota_final;
@@ -265,16 +257,14 @@ async function corrigirRedacao() {
         resultadoDiv.style.display = 'block';
 
     } catch (error) {
-        loading.style.display = 'none'; 
         console.error("Erro na correção:", error);
-        // Mensagem de erro amigável
-        statusDiv.textContent = `Erro: Não foi possível corrigir. Verifique a URL da API ou se o backend está ativo. (Detalhes: ${error.message})`;
+        alert("Erro ao conectar ou processar a correção: " + error.message);
     } finally {
         loading.style.display = 'none';
     }
 }
 
-// Lógica de salvar rascunho (corrigida para enviar o USER_ID)
+// Lógica de salvar rascunho (CORRIGIDA)
 async function salvarRascunho() {
     const redacaoInput = document.getElementById('redacao-input');
     const redacao = redacaoInput.value;
@@ -288,7 +278,7 @@ async function salvarRascunho() {
         const response = await fetch(`${API_BASE_URL}/salvar-rascunho`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // CORREÇÃO ESSENCIAL: Envia o USER_ID para o backend
+            // CORREÇÃO: Enviando o userId
             body: JSON.stringify({ redacao: redacao, userId: USER_ID })
         });
 
