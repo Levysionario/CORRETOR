@@ -1,176 +1,277 @@
-// ARQUIVO: server.js (BACKEND COMPLETO E FINAL COM CORREÇÃO DE MODULOS)
+// ARQUIVO: server.js (COMPLETO E CORRIGIDO)
 
+import 'dotenv/config'; 
 import express from 'express';
 import cors from 'cors';
-import { GoogleGenAI } from '@google/genai';
-// Importação de módulos Node nativos para contornar o problema de sqlite3 com ESM
-import { createRequire } from 'module';
-import path from 'path';
+import { GoogleGenAI } from "@google/genai";
+// Usar 'sqlite' para Promises com sqlite3
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite'; 
 
-// CORREÇÃO CRÍTICA: Cria uma função 'require' para carregar módulos CommonJS (como sqlite3)
-const require = createRequire(import.meta.url);
-const sqlite3Module = require('sqlite3');
-const sqlite3 = sqlite3Module.verbose(); // Carrega sqlite3 com a sintaxe CJS para estabilidade
-
-// --- CONFIGURAÇÃO ---
 const app = express();
-const PORT = process.env.PORT || 3000;
-// Se o banco de dados não existir, ele será criado
-const DB_PATH = path.join(process.cwd(), 'redacoes_db.sqlite'); 
+const port = process.env.PORT || 3000;
 
-
-// Inicializa o cliente Gemini usando a chave da variável de ambiente
-if (!process.env.GEMINI_API_KEY) {
-    console.warn("AVISO: Variável de ambiente GEMINI_API_KEY não definida. A API de correção não funcionará.");
-}
+// Inicializa a Gemini API
+// Certifique-se de que GEMINI_API_KEY esteja no seu arquivo .env
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const model = "gemini-2.5-flash"; // Modelo rápido e eficiente
+const model = "gemini-2.5-flash"; 
 
-// --- MIDDLEWARES ---
-app.use(cors()); 
-app.use(express.json()); 
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-// --- BANCO DE DADOS (SQLite) ---
-const db = new sqlite3.Database(DB_PATH, (err) => {
-    if (err) {
-        console.error('Erro ao conectar ao SQLite:', err.message);
-    } else {
-        console.log('Conectado ao banco de dados SQLite.');
-        initializeDatabase();
+let db;
+
+// Funções utilitárias para o banco de dados
+async function initializeDatabase() {
+    try {
+        db = await open({
+            filename: './redacoes.db',
+            driver: sqlite3.Database
+        });
+
+        // Cria a tabela USUARIOS (usando TEXT para o ID único do Frontend)
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS USUARIOS (
+                usuario_id TEXT PRIMARY KEY,
+                data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // Cria a tabela REDACOES
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS REDACOES (
+                redacao_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id TEXT NOT NULL,
+                data_submissao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                tema VARCHAR(255) NULL,
+                texto_original LONGTEXT NOT NULL,
+                
+                -- Se nota_final for 0, é um rascunho
+                nota_final INT DEFAULT 0, 
+                c1_score INT DEFAULT 0,
+                c2_score INT DEFAULT 0,
+                c3_score INT DEFAULT 0,
+                c4_score INT DEFAULT 0,
+                c5_score INT DEFAULT 0,
+                
+                feedback_detalhado TEXT NULL,
+                
+                FOREIGN KEY (usuario_id) REFERENCES USUARIOS(usuario_id) ON DELETE CASCADE
+            );
+        `);
+        console.log('Banco de dados SQLite inicializado e tabelas verificadas.');
+    } catch (e) {
+        console.error("ERRO FATAL ao inicializar o banco de dados:", e);
+    }
+}
+
+// Inicializa o banco de dados antes de iniciar o servidor
+initializeDatabase();
+
+// -----------------------------------------------------------
+// ROTAS DE API (CORRIGIDAS COM 'return' NO TRATAMENTO DE ERROS)
+// -----------------------------------------------------------
+
+// Rota 1: Dashboard - Carrega sumário, histórico e rascunhos
+app.get('/api/dashboard-data/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    if (!db) {
+        return res.status(500).json({ error: 'Conexão com o banco de dados não estabelecida.' });
+    }
+
+    try {
+        // 1. Sumário (Calcula médias e total de corrigidas - nota_final > 0)
+        const sumarioQuery = `
+            SELECT 
+                COUNT(redacao_id) AS total,
+                COALESCE(AVG(nota_final), 0) AS nota_media,
+                COALESCE(AVG(c1_score), 0) AS c1_media,
+                COALESCE(AVG(c2_score), 0) AS c2_media,
+                COALESCE(AVG(c3_score), 0) AS c3_media,
+                COALESCE(AVG(c4_score), 0) AS c4_media,
+                COALESCE(AVG(c5_score), 0) AS c5_media
+            FROM REDACOES
+            WHERE usuario_id = ? AND nota_final > 0;
+        `;
+        const sumario = await db.get(sumarioQuery, [userId]);
+
+        // 2. Histórico (Redações corrigidas)
+        const historico = await db.all(
+            `SELECT redacao_id, tema, nota_final, DATE(data_submissao) as data 
+             FROM REDACOES 
+             WHERE usuario_id = ? AND nota_final > 0 
+             ORDER BY data_submissao DESC`, 
+            [userId]
+        );
+
+        // 3. Rascunhos (Redações salvas, nota_final = 0)
+        const rascunhos = await db.all(
+            `SELECT redacao_id, SUBSTR(texto_original, 1, 50) as texto, DATE(data_submissao) as data 
+             FROM REDACOES 
+             WHERE usuario_id = ? AND nota_final = 0
+             ORDER BY data_submissao DESC`, 
+            [userId]
+        );
+
+        res.json({
+            sumario: sumario,
+            historico: historico,
+            rascunhos: rascunhos
+        });
+
+    } catch (error) {
+        console.error(`Erro ao carregar dados do Dashboard para ${userId}:`, error.message);
+        // FIX CRÍTICO: Usar 'return'
+        return res.status(500).json({ error: 'Erro interno do servidor ao consultar o banco de dados.' }); 
     }
 });
 
-function initializeDatabase() {
-    db.run(`
-        CREATE TABLE IF NOT EXISTS REDACOES (
-            redacao_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id TEXT NOT NULL,         -- Chave de Privacidade
-            data_submissao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            tema VARCHAR(255) NULL,
-            texto_original LONGTEXT NOT NULL,
-            
-            -- Resultados da Correção
-            nota_final INT,
-            c1_score INT,
-            c2_score INT,
-            c3_score INT,
-            c4_score INT,
-            c5_score INT,
-            feedback_detalhado TEXT,
-            
-            -- Status: 0 = Corrigida, 1 = Rascunho
-            is_rascunho BOOLEAN NOT NULL DEFAULT 1 
-        );
-    `, (err) => {
-        if (err) {
-            console.error("Erro ao criar tabela REDACOES:", err.message);
-        } else {
-            console.log("Tabela REDACOES verificada/criada.");
-        }
-    });
-}
 
+// Rota 2: Detalhes da Redação/Rascunho
+app.get('/api/redacao/:id', async (req, res) => {
+    const { id } = req.params;
+    const redacaoId = parseInt(id, 10);
 
-// ----------------------------------------------------------------------
-// 1. LÓGICA DE CORREÇÃO (GEMINI API)
-// ----------------------------------------------------------------------
-
-const correctionPrompt = (redacao) => `
-    Você é um corretor de redações especialista na metodologia ENEM.
-    Sua única tarefa é analisar a redação fornecida e gerar uma nota e um feedback estruturado.
-
-    Regras de Pontuação (0 a 200 para cada competência):
-    - C1: Domínio da norma-padrão.
-    - C2: Compreensão da proposta e aplicação de conceitos.
-    - C3: Seleção, organização e interpretação de fatos e opiniões.
-    - C4: Demonstração de conhecimento dos mecanismos linguísticos (coesão).
-    - C5: Elaboração de proposta de intervenção.
-
-    A nota final é a soma das 5 competências.
-
-    A redação para análise é:
-    ---
-    ${redacao}
-    ---
-
-    Gere o resultado em formato JSON estrito, seguindo exatamente o seguinte esquema.
-    Não inclua NENHUM texto extra antes ou depois do JSON.
-
-    JSON Schema:
-    {
-      "nota_final": number,
-      "c1_score": number,
-      "c2_score": number,
-      "c3_score": number,
-      "c4_score": number,
-      "c5_score": number,
-      "feedback_detalhado": string (Um texto que resume os pontos fortes e fracos em cada competência. Use '\\n' para quebras de linha.)
+    if (!db) {
+        return res.status(500).json({ error: 'Conexão com o banco de dados não estabelecida.' });
     }
-`;
 
-async function getCorrection(redacao) {
-    if (!process.env.GEMINI_API_KEY) {
-         throw new Error("Chave API não configurada. A correção da IA não pode ser realizada.");
-    }
-    
     try {
-        const response = await ai.models.generateContent({
-            model: model,
-            contents: correctionPrompt(redacao),
-            config: {
-                responseMimeType: "application/json", 
-                responseSchema: {
-                    type: "object",
-                    properties: {
-                        nota_final: { type: "number" },
-                        c1_score: { type: "number" },
-                        c2_score: { type: "number" },
-                        c3_score: { type: "number" },
-                        c4_score: { type: "number" },
-                        c5_score: { type: "number" },
-                        feedback_detalhado: { type: "string" }
-                    },
-                    required: ["nota_final", "c1_score", "c2_score", "c3_score", "c4_score", "c5_score", "feedback_detalhado"]
-                }
-            }
-        });
+        const query = `
+            SELECT 
+                redacao_id, usuario_id, tema, texto_original, 
+                nota_final, c1_score, c2_score, c3_score, c4_score, c5_score, 
+                feedback_detalhado, DATE(data_submissao) as data
+            FROM REDACOES 
+            WHERE redacao_id = ?
+        `;
         
-        const jsonText = response.text.trim();
-        return JSON.parse(jsonText);
+        const row = await db.get(query, [redacaoId]);
+
+        if (!row) {
+            // FIX CRÍTICO: Usar 'return'
+            return res.status(404).json({ error: "Redação não encontrada." });
+        }
+        
+        res.status(200).json(row);
 
     } catch (error) {
-        console.error("Erro na chamada da API Gemini:", error.message);
-        throw new Error("Falha na correção da IA. Verifique a chave API ou o modelo.");
+        console.error("Erro ao buscar detalhes da redação:", error.message);
+        // FIX CRÍTICO: Usar 'return'
+        return res.status(500).json({ error: 'Erro interno ao buscar detalhes.' });
     }
-}
+});
 
 
-// ----------------------------------------------------------------------
-// 2. ROTAS API
-// ----------------------------------------------------------------------
+// Rota 3: Salvar Rascunho
+app.post('/api/salvar-rascunho', async (req, res) => {
+    const { redacao, userId } = req.body;
 
-// ROTA 1: POST para corrigir e salvar a redação
+    if (!redacao || !userId) {
+        // FIX CRÍTICO: Usar 'return'
+        return res.status(400).json({ error: 'Campos "redacao" e "userId" são obrigatórios.' });
+    }
+
+    if (!db) {
+        return res.status(500).json({ error: 'Conexão com o banco de dados não estabelecida.' });
+    }
+
+    try {
+        // Garante que o usuário exista
+        await db.run('INSERT OR IGNORE INTO USUARIOS (usuario_id) VALUES (?)', [userId]);
+
+        const insertQuery = `
+            INSERT INTO REDACOES 
+            (usuario_id, tema, texto_original) 
+            VALUES (?, ?, ?)
+        `;
+        // Nota: nota_final e scores são 0 por padrão (definidos no CREATE TABLE), indicando rascunho.
+        const result = await db.run(insertQuery, [userId, 'Rascunho Salvo', redacao]);
+
+        res.status(201).json({ success: true, message: 'Rascunho salvo com sucesso!', redacaoId: result.lastID });
+
+    } catch (error) {
+        console.error("Erro ao salvar rascunho:", error.message);
+        // FIX CRÍTICO: Usar 'return'
+        return res.status(500).json({ error: 'Erro interno ao salvar rascunho.' });
+    }
+});
+
+
+// Rota 4: Corrigir Redação com IA
 app.post('/api/corrigir-redacao', async (req, res) => {
     const { redacao, tema, userId } = req.body;
 
     if (!redacao || !userId) {
-        return res.status(400).json({ error: "Redação ou ID de usuário ausente." });
+        // FIX CRÍTICO: Usar 'return'
+        return res.status(400).json({ error: 'Campos "redacao" e "userId" são obrigatórios.' });
+    }
+
+    if (!db) {
+        return res.status(500).json({ error: 'Conexão com o banco de dados não estabelecida.' });
     }
 
     try {
-        // 1. Chama a IA para correção
-        const correctionResult = await getCorrection(redacao);
+        // 1. Garante que o usuário exista
+        await db.run('INSERT OR IGNORE INTO USUARIOS (usuario_id) VALUES (?)', [userId]);
 
-        // 2. Salva o resultado no Banco de Dados
+        // 2. Cria o Prompt
+        const prompt = `
+            Você é um corretor de redações especialista do ENEM, focado estritamente nas 5 Competências (C1 a C5).
+            A redação a seguir é do tema: "${tema}".
+            
+            Sua tarefa é:
+            1. Atribuir Pontuações (0 a 200) para cada uma das 5 competências.
+            2. Fornecer um feedback detalhado. Use o caractere '\\n' para quebras de linha no feedback detalhado.
+            3. Retornar o resultado EXCLUSIVAMENTE em formato JSON.
+
+            Redação: "${redacao}"
+
+            Estrutura JSON esperada:
+            {
+                "nota_final": [Nota total (soma das 5 competências)],
+                "c1_score": [Pontuação C1],
+                "c2_score": [Pontuação C2],
+                "c3_score": [Pontuação C3],
+                "c4_score": [Pontuação C4],
+                "c5_score": [Pontuação C5],
+                "feedback_detalhado": "[Seu feedback formatado com '\\n']"
+            }
+        `;
+
+        // 3. Chamada da Gemini API
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: [{ role: "user", parts: [{ text: prompt }] }]
+        });
+        
+        // Extrai o JSON da resposta (usa regex para garantir que pega o objeto completo)
+        const jsonText = response.text.match(/\{[\s\S]*\}/)?.[0];
+
+        if (!jsonText) {
+            // FIX CRÍTICO: Usar 'return'
+            return res.status(500).json({ error: 'A Gemini IA não retornou o JSON no formato esperado.' });
+        }
+
+        const correctionResult = JSON.parse(jsonText);
+        
+        if (!correctionResult || !correctionResult.nota_final) {
+            // FIX CRÍTICO: Usar 'return'
+            return res.status(500).json({ error: 'O JSON retornado pela IA está inválido ou incompleto.' });
+        }
+
+        // 4. Salva a correção no banco de dados
         const insertQuery = `
-            INSERT INTO REDACOES (usuario_id, tema, texto_original, nota_final, c1_score, c2_score, c3_score, c4_score, c5_score, feedback_detalhado, is_rascunho) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+            INSERT INTO REDACOES 
+            (usuario_id, tema, texto_original, nota_final, c1_score, c2_score, c3_score, c4_score, c5_score, feedback_detalhado) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
-        // USO DO userId PARA PRIVACIDADE
-        db.run(insertQuery, [
+        await db.run(insertQuery, [
             userId,
-            tema || 'Tema não especificado',
+            tema,
             redacao,
             correctionResult.nota_final,
             correctionResult.c1_score,
@@ -179,147 +280,20 @@ app.post('/api/corrigir-redacao', async (req, res) => {
             correctionResult.c4_score,
             correctionResult.c5_score,
             correctionResult.feedback_detalhado
-        ], function(err) {
-            if (err) {
-                console.error("Erro ao inserir correção no DB:", err.message);
-                return res.status(200).json({...correctionResult, warning: "Correção realizada, mas falha ao salvar no histórico."});
-            }
-            
-            res.status(200).json(correctionResult);
-        });
+        ]);
+        
+        // 5. Retorna o resultado de sucesso
+        res.status(200).json(correctionResult);
 
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error("Erro GERAL no /corrigir-redacao (IA ou DB):", error);
+        // FIX CRÍTICO: Usar 'return'
+        return res.status(500).json({ error: "Erro na correção com a Gemini IA. Verifique sua chave API, o log do servidor, e o formato da resposta JSON." });
     }
 });
 
 
-// ROTA 2: POST para salvar rascunho
-app.post('/api/salvar-rascunho', (req, res) => {
-    const { redacao, userId } = req.body;
-
-    if (!redacao || !userId) {
-        return res.status(400).json({ error: "Redação ou ID de usuário ausente." });
-    }
-
-    const insertQuery = `
-        INSERT INTO REDACOES (usuario_id, texto_original, tema, is_rascunho, nota_final, c1_score, c2_score, c3_score, c4_score, c5_score) 
-        VALUES (?, ?, ?, 1, 0, 0, 0, 0, 0, 0)
-    `;
-    
-    // USO DO userId PARA PRIVACIDADE
-    db.run(insertQuery, [userId, redacao, 'Rascunho'], function(err) {
-        if (err) {
-            console.error("Erro ao salvar rascunho:", err.message);
-            return res.status(500).json({ error: "Erro interno ao salvar rascunho." });
-        }
-        res.status(200).json({ success: true, message: "Rascunho salvo.", id: this.lastID });
-    });
+// Inicia o servidor Express
+app.listen(port, () => {
+    console.log(`Backend rodando em http://localhost:${port}`);
 });
-
-
-// ROTA 3: GET para dados do Dashboard
-app.get('/api/dashboard-data/:userId', async (req, res) => {
-    const userId = req.params.userId;
-
-    if (!userId) {
-        return res.status(400).json({ error: "ID de usuário ausente." });
-    }
-
-    try {
-        // 1. Sumário (Médias e Total)
-        const sumarioQuery = `
-            SELECT 
-                COUNT(CASE WHEN is_rascunho = 0 THEN redacao_id END) AS total, 
-                AVG(CASE WHEN is_rascunho = 0 THEN nota_final END) AS nota_media,
-                AVG(CASE WHEN is_rascunho = 0 THEN c1_score END) AS c1_media,
-                AVG(CASE WHEN is_rascunho = 0 THEN c2_score END) AS c2_media,
-                AVG(CASE WHEN is_rascunho = 0 THEN c3_score END) AS c3_media,
-                AVG(CASE WHEN is_rascunho = 0 THEN c4_score END) AS c4_media,
-                AVG(CASE WHEN is_rascunho = 0 THEN c5_score END) AS c5_media
-            FROM REDACOES 
-            WHERE usuario_id = ?; -- FILTRO ESSENCIAL
-        `;
-        
-        const sumario = await new Promise((resolve, reject) => {
-            db.get(sumarioQuery, [userId], (err, row) => {
-                if (err) reject(err);
-                if (row) {
-                    for (const key in row) {
-                        if (key.includes('_media') && row[key] !== null) {
-                            row[key] = Math.round(row[key]);
-                        }
-                    }
-                }
-                resolve(row || {});
-            });
-        });
-
-        // 2. Histórico de CORREÇÕES
-        const historicoQuery = `
-            SELECT redacao_id, tema, nota_final, strftime('%d/%m/%Y', data_submissao) as data 
-            FROM REDACOES 
-            WHERE usuario_id = ? AND is_rascunho = 0 -- FILTRO ESSENCIAL
-            ORDER BY data_submissao DESC;
-        `;
-        const historico = await new Promise((resolve, reject) => {
-            db.all(historicoQuery, [userId], (err, rows) => {
-                if (err) reject(err);
-                resolve(rows || []);
-            });
-        });
-        
-        // 3. Rascunhos Salvos
-        const rascunhosQuery = `
-            SELECT redacao_id, SUBSTR(texto_original, 1, 50) as texto, strftime('%d/%m/%Y', data_submissao) as data 
-            FROM REDACOES 
-            WHERE usuario_id = ? AND is_rascunho = 1 -- FILTRO ESSENCIAL
-            ORDER BY data_submissao DESC;
-        `;
-        const rascunhos = await new Promise((resolve, reject) => {
-            db.all(rascunhosQuery, [userId], (err, rows) => {
-                if (err) reject(err);
-                resolve(rows || []);
-            });
-        });
-
-        res.status(200).json({ sumario, historico, rascunhos });
-
-    } catch (error) {
-        console.error("Erro no Dashboard:", error.message);
-        res.status(500).json({ error: "Erro interno ao carregar dados do dashboard." });
-    }
-});
-
-
-// ROTA 4: GET para detalhes de uma redação (rascunho ou correção)
-app.get('/api/redacao/:id', async (req, res) => {
-    const redacaoId = req.params.id;
-
-    const query = `
-        SELECT * FROM REDACOES 
-        WHERE redacao_id = ?;
-    `;
-    
-    db.get(query, [redacaoId], (err, row) => {
-        if (err) {
-            console.error("Erro ao buscar detalhes da redação:", err.message);
-            return res.status(500).json({ error: "Erro interno ao buscar detalhes." });
-        }
-        if (!row) {
-            return res.status(404).json({ error: "Redação não encontrada." });
-        }
-        
-        res.status(200).json(row);
-    });
-});
-
-
-// ----------------------------------------------------------------------
-// 3. INICIALIZAÇÃO DO SERVIDOR
-// ----------------------------------------------------------------------
-
-app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
-});
-
