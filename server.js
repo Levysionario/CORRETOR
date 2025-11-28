@@ -1,31 +1,34 @@
-// ARQUIVO: server.js (BACKEND COMPLETO E FINAL)
+// ARQUIVO: server.js (BACKEND COMPLETO E FINAL COM CORREÇÃO DE MODULOS)
 
 import express from 'express';
 import cors from 'cors';
-// CORREÇÃO ESSENCIAL para ERR_MODULE_NOT_FOUND com sqlite3 em ambientes de nuvem:
-import sqlite3Module from 'sqlite3'; 
-const sqlite3 = sqlite3Module.verbose(); 
-
 import { GoogleGenAI } from '@google/genai';
+// Importação de módulos Node nativos para contornar o problema de sqlite3 com ESM
+import { createRequire } from 'module';
+import path from 'path';
+
+// CORREÇÃO CRÍTICA: Cria uma função 'require' para carregar módulos CommonJS (como sqlite3)
+const require = createRequire(import.meta.url);
+const sqlite3Module = require('sqlite3');
+const sqlite3 = sqlite3Module.verbose(); // Carrega sqlite3 com a sintaxe CJS para estabilidade
 
 // --- CONFIGURAÇÃO ---
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DB_PATH = './redacoes_db.sqlite';
+// Se o banco de dados não existir, ele será criado
+const DB_PATH = path.join(process.cwd(), 'redacoes_db.sqlite'); 
+
 
 // Inicializa o cliente Gemini usando a chave da variável de ambiente
 if (!process.env.GEMINI_API_KEY) {
-    console.error("ERRO: Variável de ambiente GEMINI_API_KEY não definida.");
-    // Em produção, isso deve interromper o processo para evitar custos ou falhas
-    // Mas vamos permitir continuar para testes locais com mock, se necessário.
+    console.warn("AVISO: Variável de ambiente GEMINI_API_KEY não definida. A API de correção não funcionará.");
 }
-// Assume que a chave está configurada no Render
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const model = "gemini-2.5-flash"; // Modelo rápido e eficiente
 
 // --- MIDDLEWARES ---
-app.use(cors()); // Permite acesso do frontend
-app.use(express.json()); // Permite ler o corpo das requisições JSON
+app.use(cors()); 
+app.use(express.json()); 
 
 // --- BANCO DE DADOS (SQLite) ---
 const db = new sqlite3.Database(DB_PATH, (err) => {
@@ -38,7 +41,6 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
 });
 
 function initializeDatabase() {
-    // Tabela única para armazenar redações, rascunhos e correções
     db.run(`
         CREATE TABLE IF NOT EXISTS REDACOES (
             redacao_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,7 +84,7 @@ const correctionPrompt = (redacao) => `
     - C2: Compreensão da proposta e aplicação de conceitos.
     - C3: Seleção, organização e interpretação de fatos e opiniões.
     - C4: Demonstração de conhecimento dos mecanismos linguísticos (coesão).
-    - C5: Elaboração de proposta de intervenção (completa: Agente, Ação, Meio, Efeito, Detalhamento).
+    - C5: Elaboração de proposta de intervenção.
 
     A nota final é a soma das 5 competências.
 
@@ -107,7 +109,6 @@ const correctionPrompt = (redacao) => `
 `;
 
 async function getCorrection(redacao) {
-    // Verifica se a chave API está disponível antes de chamar a IA
     if (!process.env.GEMINI_API_KEY) {
          throw new Error("Chave API não configurada. A correção da IA não pode ser realizada.");
     }
@@ -117,7 +118,6 @@ async function getCorrection(redacao) {
             model: model,
             contents: correctionPrompt(redacao),
             config: {
-                // Força a saída para ser um JSON válido
                 responseMimeType: "application/json", 
                 responseSchema: {
                     type: "object",
@@ -140,7 +140,7 @@ async function getCorrection(redacao) {
 
     } catch (error) {
         console.error("Erro na chamada da API Gemini:", error.message);
-        throw new Error("Falha na correção da IA. Verifique a chave API, o modelo ou o prompt.");
+        throw new Error("Falha na correção da IA. Verifique a chave API ou o modelo.");
     }
 }
 
@@ -182,17 +182,13 @@ app.post('/api/corrigir-redacao', async (req, res) => {
         ], function(err) {
             if (err) {
                 console.error("Erro ao inserir correção no DB:", err.message);
-                // Mesmo com erro no DB, tentamos retornar a correção da IA
                 return res.status(200).json({...correctionResult, warning: "Correção realizada, mas falha ao salvar no histórico."});
             }
-            console.log(`Correção salva com ID: ${this.lastID} para Usuário: ${userId}`);
             
-            // 3. Retorna o resultado da correção para o frontend
             res.status(200).json(correctionResult);
         });
 
     } catch (error) {
-        // Erro da IA
         res.status(500).json({ error: error.message });
     }
 });
@@ -249,7 +245,6 @@ app.get('/api/dashboard-data/:userId', async (req, res) => {
             db.get(sumarioQuery, [userId], (err, row) => {
                 if (err) reject(err);
                 if (row) {
-                    // Arredonda as notas médias
                     for (const key in row) {
                         if (key.includes('_media') && row[key] !== null) {
                             row[key] = Math.round(row[key]);
@@ -306,8 +301,6 @@ app.get('/api/redacao/:id', async (req, res) => {
         WHERE redacao_id = ?;
     `;
     
-    // NOTA: Não filtramos por userId aqui, pois o ID já é "privado" se a busca for pelo ID
-    // mas em um sistema de produção, você DEVERIA incluir o userId aqui também por segurança.
     db.get(query, [redacaoId], (err, row) => {
         if (err) {
             console.error("Erro ao buscar detalhes da redação:", err.message);
@@ -329,3 +322,4 @@ app.get('/api/redacao/:id', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });
+
